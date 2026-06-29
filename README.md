@@ -40,7 +40,7 @@ Without Rs, the attacker faces exponential ambiguity — many walks rewrite to t
 
 **What's built (v0.2.0):**
 
-The encrypt/decrypt pipeline runs end-to-end. The key mechanism uses Rs-equivalence classes derived from Knuth-Bendix completion — generator pairs are grouped by their Rs-normal form, and the key is a bijective permutation within each group. A diffusion layer (multi-round mixed addition/XOR chaining over generator values) achieves ~65% avalanche on a single-generator change.
+The encrypt/decrypt pipeline runs end-to-end. The key mechanism uses Rs-equivalence classes derived from Knuth-Bendix completion — generator pairs are grouped by their Rs-normal form, and the key is a bijective permutation within each group. A diffusion layer (multi-round mixed addition/XOR chaining over generator values) achieves ~50% avalanche on a single-generator change (test threshold: >40% across measured positions with N_ROUNDS=2).
 
 **What this is not:**
 
@@ -118,7 +118,7 @@ These aren't bugs. They're documented properties of the current construction —
 
 **2. Pair-level KB, not full LGIP.** The KB completion trapdoor operates on generator pairs, not words. Full word-level non-confluent rewriting — where multiple distinct walks reduce to the same ciphertext, creating genuine preimage ambiguity — is not yet implemented.
 
-**3. No message authentication.** Ciphertext is malleable. No MAC, no AEAD. An attacker can modify the walk without detection.
+**3. No message authentication.** Ciphertext is malleable. No MAC, no AEAD. An attacker can modify generator values in the walk and submit the result to a decryption oracle, using the oracle's response to extract structural information about the walk. This is IND-CCA1 failure by construction — it holds regardless of whether LGIP is hard. The scheme cannot be used safely without an outer authentication layer (e.g., Encrypt-then-MAC with a separate key).
 
 **4. Walk expansion.** Ciphertext is ~4× the plaintext size. High compared to AEAD schemes (~0×).
 
