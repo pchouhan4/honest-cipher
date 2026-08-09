@@ -82,9 +82,11 @@ The most likely reason: the rewriting system's equivalence classes are not corre
 
 ## Files
 
-- `partial_rule_leakage_sim.py` — experiment code (in this directory)
-- `leakage_results.pkl` — raw results (50 trials × 6 leakage fractions)
-- `kb_rules_output.txt` — the KB completion that produced the 230 Rs rules
+- `partial_rule_leakage_sim.py` — experiment code (in this directory). **Not currently runnable as checked in**: it expects `public_rules.json` and `private_rules.json` in the working directory, which aren't part of this repo.
+- `leakage_results.pkl` — raw results (50 trials × 6 leakage fractions). **Not checked in.**
+- `kb_rules_output.txt` — the KB completion that produced the 230 Rs rules. **Not checked in.**
+
+None of the three artifacts above are in this repo, which means the numbers in this document currently can't be independently reproduced — only re-derived from scratch by regenerating a similarly-shaped Rp/Rs and rerunning the simulation. Treat the reported accuracy as reported, not as verified by anyone but the author. Checking in the rule files (or a seeded regeneration script) would close this gap.
 
 ---
 

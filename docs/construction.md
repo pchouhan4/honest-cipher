@@ -68,6 +68,10 @@ KeyGen():
 
 **Security note:** if Rp has few critical pairs, Rs ≈ Rp and the private key contains little information not already in the public key. Parameter selection must ensure |Rs \ Rp| is cryptographically significant.
 
+**Measured, not hypothetical:** at the current default parameters (`n_rules=12`, 4-generator alphabet), this failure mode is not an edge case — it's close to the typical case. Across 40 fresh key generations: median |Rs \ Rp| was ~8 rules, but 12.5% of trials (5/40) added *zero* new rules (`Rs == Rp` exactly), and even where new rules were added, 11-12 of the original 12 `Rp` rules survived into `Rs` unchanged. Downstream, the substitution groups this produces over the 16 generator-pairs are almost always shaped `[2,2,2,2,2,2,2,1,1]` — a keyspace of roughly 2⁷ = 128 for the pair-substitution table, independent of whether completion added anything. **At these parameters, the trapdoor is not cryptographically significant.** Confidentiality in the current implementation rests on the HMAC-SHA256 keystreams in `encode()`/`diffuse()`, not on the rewriting system. See README §Known limitations #2 and open problem 7 (parameter scaling) — this is the load-bearing open problem, not a footnote.
+
+Note also that `Rs \ Rp` is not strictly well-defined as written: the completion algorithm's simplify step can rewrite an existing `Rp` rule's RHS in place rather than only appending new rules, so "the private information" is better described as "the completed rule set, which may differ from Rp on a small number of rules" than as a literal set difference.
+
 ---
 
 ## 4. Encryption
@@ -121,17 +125,13 @@ Grover gives quadratic speedup on unstructured search, halving the effective sec
 
 ## 6. Current implementation
 
-**Diffusion layer (v0.2).** A multi-round CBC-like chaining over generator values in {0,1,2,3} (generators 1-4 mapped to 0-3 for arithmetic). Each round applies a key-dependent addition chain (forward) followed by an XOR chain (backward). In practice a 1-generator change propagates to approximately 50% of output positions (test threshold: >40% across measured positions with N_ROUNDS=2; see `diffusion.py`'s avalanche test). The layer is invertible given the key — no information is lost. See `src/honest/diffusion.py`.
+**Diffusion layer (v0.2).** A multi-round CBC-like chaining over generator values in {0,1,2,3} (generators 1-4 mapped to 0-3 for arithmetic). Each round applies a key-dependent addition chain (forward) followed by an XOR chain (backward). Measured over 1000 trials (n=128, N_ROUNDS=2): mean avalanche ~72-76%, but not uniform — roughly the last ⅛ of the walk has a reproducible weak zone where single-position flips can propagate to as little as 1-9% of output positions, and ~3-4% of random flips fall below the project's own >40% threshold. `python3 -m honest.diffusion` now sweeps all 128 positions per run instead of four hand-picked ones, so this shows up directly rather than being missed. The layer is invertible given the key — no information is lost; the weak positions are a documented property, not a decryption bug. See `src/honest/diffusion.py`.
 
 **KB completion trapdoor (v0.2).** The private key is now generated via Knuth-Bendix completion of the public rule set Rp, producing the private complete extension Rs. Generator pairs are grouped by their Rs-normal form rather than XOR sum. The key is a bijective permutation within each Rs-equivalence class — endpoint-preserving and provably invertible.
 
 Distinction from full LGIP: this is pair-level KB (the groups are determined by Rs, but encryption is still a bijective substitution). Full LGIP requires word-level non-confluent rewriting where multiple walks reduce to the same ciphertext walk. That is open problem 4 as originally defined — the pair-level version here is the first concrete step.
 
-**Diffusion + rewriting pipeline:**
-
-
-
-Implementation: , , .
+**Diffusion + rewriting pipeline:** see §4.2 above for the full encrypt/decrypt sequence. Implementation: `src/honest/diffusion.py`, `src/honest/kb_completion.py`, `src/honest/rewriter.py`.
 
 ---
 

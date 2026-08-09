@@ -12,7 +12,11 @@ You'll be credited in the README and in any future publication.
 
 ## Already known — no need to report
 
-Weak avalanche effect (~1% diffusion on a 1-bit plaintext change), malleable ciphertext with no MAC, LGIP hardness unproven, block substitution standing in for the full Rp/Rs system, no formal IND-CPA or IND-CCA2 proof, no quantum advantage analysis, no side-channel analysis.
+- The KB completion trapdoor contributes a small keyspace (~2⁷) at current parameters, and in ~12.5% of key generations contributes none at all (`Rs == Rp`). See README §Known limitations #2 and `docs/construction.md` §3. This is the biggest known gap — new analysis of *why* this happens or how much larger the alphabet needs to be (open problem 7) is genuinely useful; re-reporting that the keyspace is small is not.
+- Diffusion avalanche has a reproducible weak zone in roughly the last ⅛ of the walk (see `docs/construction.md` §6, `python3 -m honest.diffusion`). Fixed nonce per encryption means this isn't directly exploitable as shipped, but it's a real gap from the strict avalanche criterion (open problem 5).
+- Malleable ciphertext with no MAC — this is IND-CCA1-broken by construction, independent of LGIP hardness.
+- LGIP hardness is unproven; only pair-level KB is implemented, not the full word-level Rp/Rs system (open problem 4).
+- No formal IND-CPA or IND-CCA2 proof, no quantum advantage analysis beyond "no known poly-time attack," no side-channel analysis (not constant-time).
 
 ## Scope
 

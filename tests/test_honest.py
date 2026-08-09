@@ -234,9 +234,18 @@ class TestCipher:
             pass  # Exception on wrong key is also acceptable
 
     def test_endpoint_preserved_through_encryption(self):
-        """The rewriting step must not change walk endpoint."""
+        """The KB/block rewriting step must not change walk endpoint.
+
+        This must be checked against the post-diffusion walk, not the raw
+        encode() output: diffusion runs *before* rewriting in the pipeline
+        (see cipher.py) and makes no endpoint-preservation claim of its own
+        -- only the rewrite step does. Comparing across the diffusion
+        boundary compares two things the spec never claimed were equal.
+        This mirrors the live assert in HonestCipher.encrypt().
+        """
         from honest.hypercube import apply_walk
         from honest.encoding import encode, entropy_from_key_and_nonce
+        from honest.diffusion import diffuse, diffusion_key_seed
         import hashlib, json
 
         msg = b"Endpoint test"
@@ -245,14 +254,15 @@ class TestCipher:
         nonce = bytes.fromhex(ct["nonce"])
         key_data = json.dumps(self.cipher.export_key(), sort_keys=True).encode()
         key_hash = hashlib.sha256(key_data).digest()
-        from honest.encoding import entropy_from_key_and_nonce
         entropy = entropy_from_key_and_nonce(key_hash, nonce)
 
-        from honest.encoding import encode
-        start, original_walk = encode(msg, entropy)
+        start, walk = encode(msg, entropy)
+        if ct["diffusion"]:
+            dseed = diffusion_key_seed(key_hash, nonce)
+            walk = diffuse(walk, dseed)
         rewritten_walk = ct["walk"]
 
-        assert apply_walk(start, original_walk) == apply_walk(start, rewritten_walk)
+        assert apply_walk(start, walk) == apply_walk(start, rewritten_walk)
 
 
 # ── Known Limitations (documented, not bugs) ──────────────────────────────────
@@ -412,13 +422,24 @@ class TestKBCompletion:
         rs, success = knuth_bendix_complete(rp, max_steps=500)
         assert len(rs) >= len(rp), "Completion removed rules"
 
-    def test_rs_is_superset_of_rp(self):
-        from honest.kb_completion import generate_public_rules, knuth_bendix_complete
+    def test_rs_simulates_rp(self):
+        """Rs is a valid completion of Rp iff every Rp rewrite step is still
+        sound under Rs -- i.e. each rule's lhs and rhs normalize to the same
+        Rs-normal-form. This is the real completion guarantee.
+
+        Rs is NOT guaranteed to contain Rp's rules verbatim: the simplify
+        step in knuth_bendix_complete() can rewrite an existing rule's rhs
+        in place when a newly-added rule reduces it further. That's
+        legitimate interreduction, not a bug -- but it means "Rs \\ Rp" is
+        not always well-defined as a literal set difference. Docs updated
+        to match (see docs/construction.md section 3).
+        """
+        from honest.kb_completion import generate_public_rules, knuth_bendix_complete, normalize
         rp = generate_public_rules(secrets.token_bytes(32))
         rs, _ = knuth_bendix_complete(rp, max_steps=500)
-        rp_set = set((r.lhs, r.rhs) for r in rp)
-        rs_set = set((r.lhs, r.rhs) for r in rs)
-        assert rp_set.issubset(rs_set), "Rs must contain all Rp rules"
+        for r in rp:
+            assert normalize(r.lhs, rs) == normalize(r.rhs, rs), \
+                f"Rp rule {r} not simulated by its own Rs completion"
 
     def test_normalization_preserves_endpoint(self):
         from honest.kb_completion import generate_kb_key, normalize, _endpoint

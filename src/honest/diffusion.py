@@ -53,7 +53,14 @@ def diffuse(walk: list[int], key_seed: bytes) -> list[int]:
     """
     Apply diffusion to a walk. Generators {1,2,3,4} in, {1,2,3,4} out.
 
-    A 1-generator change in the input changes ~50% of the output positions.
+    A 1-generator change in the input changes ~75% of output positions on
+    average (measured: 1000 trials, n=128, N_ROUNDS=2), but this is not
+    uniform across positions. Flips in roughly the last 1/8 of the walk
+    have a reproducible weak tail -- about 3-4% of random single-position
+    flips fall below the project's own >40% threshold, occasionally as low
+    as 3-9%. See docs/construction.md section 6 and the sweep in
+    `python3 -m honest.diffusion` for measured numbers instead of a single
+    hand-picked estimate.
     """
     if not walk:
         return []
@@ -143,16 +150,31 @@ if __name__ == "__main__":
         assert all(g in {1,2,3,4} for g in d), "Out of range"
         print(f"  n={n:4d}: roundtrip ✓  range valid ✓")
 
-    print("\nAvalanche tests (1-generator change at each test position):")
+    print("\nAvalanche sweep (1-generator change at every position, n=128):")
+    print("  Checking all 128 positions, not a hand-picked few -- a prior")
+    print("  version of this check sampled only {0,1,63,127} and missed a")
+    print("  real weak zone near the end of the walk. See docs/construction.md.")
     base = [secrets.randbelow(4) + 1 for _ in range(128)]
-    for pos in [0, 1, 63, 127]:
+    d_base = diffuse(base, key_seed)
+    pcts = []
+    for pos in range(128):
         flip = list(base)
         flip[pos] = (flip[pos] % 4) + 1
-        d_base = diffuse(base, key_seed)
         d_flip = diffuse(flip, key_seed)
         differ = sum(a != b for a, b in zip(d_base, d_flip))
-        pct = 100 * differ / len(d_base)
-        status = "✓" if pct > 40 else "WEAK"
-        print(f"  pos={pos:3d}: {differ}/128 differ ({pct:.1f}%) {status}")
+        pcts.append(100 * differ / len(d_base))
+    weak = [(p, pct) for p, pct in enumerate(pcts) if pct <= 40]
+    print(f"  mean={sum(pcts)/len(pcts):.1f}%  min={min(pcts):.1f}%  max={max(pcts):.1f}%")
+    if weak:
+        print(f"  WEAK: {len(weak)}/128 positions at or below the 40% threshold")
+        for p, pct in weak[:8]:
+            print(f"    pos={p:3d}: {pct:.1f}%")
+        if len(weak) > 8:
+            print(f"    ... and {len(weak) - 8} more")
+    else:
+        print("  All 128 positions above threshold on this run (weak zone is")
+        print("  probabilistic, not guaranteed to appear every run -- rerun")
+        print("  a few times or see docs/construction.md for measured rates).")
 
-    print("\nAll checks passed ✓")
+    print("\nRoundtrip/range checks passed. Avalanche is documented, not")
+    print("guaranteed -- see the WEAK count above for this run.")
