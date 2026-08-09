@@ -17,6 +17,7 @@ Proper padding is future work.
 
 from __future__ import annotations
 import hashlib
+import hmac
 import struct
 from .hypercube import apply_walk, N_VERTICES
 
@@ -111,8 +112,13 @@ def decode(start_node: int, walk: list[int], entropy: bytes) -> bytes:
 
 
 def entropy_from_key_and_nonce(key_hash: bytes, nonce: bytes) -> bytes:
-    """Derive per-message entropy from key material + nonce."""
-    return hashlib.sha256(key_hash + nonce).digest()
+    """Derive per-message entropy from key material + nonce.
+
+    Uses HMAC-SHA256(key=key_hash, msg=nonce) rather than SHA-256(key_hash || nonce).
+    HMAC is the correct construction for a keyed hash: it avoids length-extension
+    properties of raw Merkle-Damgard and matches the pattern already used in diffusion.py.
+    """
+    return hmac.new(key_hash, nonce, hashlib.sha256).digest()
 
 
 # ── Sanity checks ──────────────────────────────────────────────────────────────

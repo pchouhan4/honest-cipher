@@ -121,7 +121,7 @@ Grover gives quadratic speedup on unstructured search, halving the effective sec
 
 ## 6. Current implementation
 
-**Diffusion layer (v0.2).** A multi-round CBC-like chaining over generator values in {0,1,2,3} (generators 1-4 mapped to 0-3 for arithmetic). Each round applies a key-dependent addition chain (forward) followed by an XOR chain (backward). A 1-generator change propagates to ~65% of output positions. The layer is invertible given the key — no information is lost. See `src/honest/diffusion.py`.
+**Diffusion layer (v0.2).** A multi-round CBC-like chaining over generator values in {0,1,2,3} (generators 1-4 mapped to 0-3 for arithmetic). Each round applies a key-dependent addition chain (forward) followed by an XOR chain (backward). In practice a 1-generator change propagates to approximately 50% of output positions (test threshold: >40% across measured positions with N_ROUNDS=2; see `diffusion.py`'s avalanche test). The layer is invertible given the key — no information is lost. See `src/honest/diffusion.py`.
 
 **KB completion trapdoor (v0.2).** The private key is now generated via Knuth-Bendix completion of the public rule set Rp, producing the private complete extension Rs. Generator pairs are grouped by their Rs-normal form rather than XOR sum. The key is a bijective permutation within each Rs-equivalence class — endpoint-preserving and provably invertible.
 

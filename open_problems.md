@@ -24,9 +24,13 @@ A lower bound on search space size as a function of parameters would already be 
 
 Given k pairs {(mᵢ, cᵢ)} encrypted under the same key, can an adversary recover partial or complete information about Rs?
 
-The direct approach: compute the walk encoding of mᵢ to get wᵢ, observe the ciphertext walk cᵢ, identify which generator pairs were substituted, reconstruct the permutation table.
+There are two distinct attack paths that need to be treated separately:
 
-**Partial result (March 2026):** A surface-feature fingerprinting experiment tested whether ML classification on walk unigram/bigram features, with up to 50% of Rs leaked (111 of 222 rules), could identify canonical equivalence classes. Result: attacker accuracy stayed at 0.0264 ± 0.003 — indistinguishable from random guessing across all leakage fractions. The delta across conditions never exceeded 0.00001. See  for the full writeup. This closes the surface-feature path under this model. Direct algebraic recovery of the permutation table from known-plaintext pairs remains open and untested.
+**Path A — Direct pair table recovery (untested, higher priority).** With |Σ| = 4, the generator pair space is {1,2,3,4}×{1,2,3,4} = 16 pairs. The substitution key is a bijective permutation over a small number of equivalence classes of those 16 pairs. An attacker who can observe enough known-plaintext walks can recover the substitution table empirically: encode mᵢ to get the plaintext walk wᵢ, compare to ciphertext walk cᵢ at each even-position pair boundary, record which pair mapped to which. With random plaintexts of moderate length, all 16 pairs will be observed and their images identified in tens to hundreds of examples depending on class structure. This attack does not require solving LGIP — it bypasses LGIP entirely by directly reading off the pair-level permutation. **This path has not been tested and is the most urgent open problem.** It may be mitigated at the full word-level LGIP construction (where pairs are not the unit of substitution), but not at the current pair-level implementation.
+
+**Path B — Surface-feature fingerprinting (tested, closed under this model).** ML classification on walk unigram/bigram features, with up to 50% of Rs leaked (111 of 222 rules), could not identify canonical equivalence classes. Attacker accuracy stayed at 0.0264 ± 0.003 — indistinguishable from random guessing across all leakage fractions. The delta across conditions never exceeded 0.00001. See `docs/experiments/leakage_analysis.md` for the full writeup. This closes the surface-feature path under this model.
+
+Note: Path B closing does not close Path A. They address different questions — statistical fingerprinting vs. direct algebraic reconstruction.
 
 ---
 
