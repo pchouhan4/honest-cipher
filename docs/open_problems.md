@@ -15,6 +15,8 @@ Is LGIP hard on average over a natural input distribution? The goal is either a 
 
 A lower bound on search space size as a function of parameters would already be valuable, even without a full proof.
 
+**Partial negative result (tested).** The framing "the attacker must recover Rs" is too generous to the scheme — an attacker only needs *any* confluent `R*` agreeing with `Rs` on normal forms. Measured: perturbing only the completion algorithm's processing order yields a functionally identical decoder in **30/30** attempts. Separately, the endpoint constraint underlying LGIP is close to vacuous: since φ is an XOR homomorphism, every permutation of a walk shares an endpoint, so each class holds 4ⁿ/8 walks (measured: exactly 12.5% of all walks for n = 4, 6, 8, 10) and is publicly computable in O(n). Any hardness argument has to survive both facts. See `docs/experiments/equivalent_completion_attack.md`.
+
 ---
 
 ## Problem 2: Rule inference attack
@@ -97,6 +99,8 @@ The current encoding uses 4 generators per input byte giving ~4× expansion. App
 ---
 
 ## Solved problems (v0.2)
+
+> **Correction:** "Problem 4 solved in v0.2" was wrong in a way nobody could see from the outside. A bug in `knuth_bendix_complete()`'s success criterion (it tested "no critical pairs exist" instead of the correct "all critical pairs join") made completion report failure on 100% of runs, so `generate_kb_key()` silently fell back to the trivial `Rs = Rp` on **every key generation**. The KB trapdoor never actually executed in any released version. The bug is now fixed with regression tests, so the trapdoor does run — but re-measuring it against working completion shows it contributes only ~2⁷ keyspace, and that this is structural rather than a parameter choice. See `docs/experiments/equivalent_completion_attack.md`. Problem 4 is better described as *implemented but demonstrated insufficient* than as solved.
 
 **Problem 4 (KB completion trapdoor)** — implemented in v0.2. Generator pairs are now grouped by their Rs-equivalence classes (Rs-normal form), derived from KB completion of the public rule set Rp. The private key is Rs; without it, the grouping cannot be reconstructed. Full walk-level LGIP (non-confluent rewriting at word level) remains open.
 

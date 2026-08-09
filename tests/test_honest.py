@@ -404,6 +404,54 @@ class TestDiffusion:
 
 class TestKBCompletion:
 
+    def test_completion_success_flag_is_accurate(self):
+        """Regression: the success flag must reflect the real KB criterion.
+
+        A prior version returned success=True only when ZERO critical pairs
+        existed. That test can never pass on a non-trivial rule set -- overlaps
+        keep appearing no matter how complete the system is -- so completion
+        reported failure on every run, and generate_kb_key() silently fell back
+        to the trivial Rs = Rp on 100% of key generations. The KB trapdoor was
+        never actually exercised in any shipped version.
+
+        The correct criterion (Newman's Lemma): every critical pair JOINS.
+        """
+        from honest.kb_completion import (
+            generate_public_rules, knuth_bendix_complete, normalize, _critical_pairs
+        )
+        successes = 0
+        for _ in range(10):
+            rp = generate_public_rules(secrets.token_bytes(32))
+            rs, success = knuth_bendix_complete(rp, max_steps=500)
+            # the reported flag must match ground truth, whichever way it went
+            all_join = all(
+                normalize(u, rs) == normalize(v, rs) for u, v in _critical_pairs(rs)
+            )
+            assert success == all_join, (
+                f"success flag ({success}) disagrees with the real KB criterion "
+                f"({all_join}) -- the success check is wrong again"
+            )
+            successes += success
+        assert successes > 0, (
+            "completion never succeeded across 10 attempts -- this is the exact "
+            "symptom of the original bug, investigate before assuming it's parameters"
+        )
+
+    def test_keygen_does_not_always_hit_trivial_fallback(self):
+        """Regression: generate_kb_key must not silently degrade to Rs = Rp
+        every time. Some genuine-zero-growth completions are legitimate, so
+        this asserts on the rate, not on any single key."""
+        from honest.kb_completion import generate_kb_key
+        trivial = 0
+        for _ in range(12):
+            rp, rs = generate_kb_key(secrets.token_bytes(32))
+            if set((r.lhs, r.rhs) for r in rs) == set((r.lhs, r.rhs) for r in rp):
+                trivial += 1
+        assert trivial < 12, (
+            "every single key generation produced Rs == Rp -- the KB trapdoor is "
+            "not running at all (this was the original bug's signature)"
+        )
+
     def test_generates_public_rules(self):
         from honest.kb_completion import generate_public_rules
         rp = generate_public_rules(secrets.token_bytes(32))

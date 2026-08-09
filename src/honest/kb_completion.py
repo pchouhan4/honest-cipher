@@ -180,6 +180,17 @@ def knuth_bendix_complete(
 
     Only adds rules whose lhs has length <= MAX_LHS_LEN to keep
     the rule set finite and normalization tractable.
+
+    Success criterion: every critical pair JOINS (both sides reduce to the
+    same normal form). By Newman's Lemma, local confluence plus termination
+    gives confluence, and the shortlex order guarantees termination here.
+
+    Note this is NOT "no critical pairs exist" -- a non-trivial rule set
+    keeps producing overlaps no matter how complete it is, so that stricter
+    test can never pass on a useful rule set. An earlier version of this
+    function used it, so completion reported success=False on every run and
+    generate_kb_key() silently fell back to the trivial Rs = Rp on 100% of
+    key generations. See tests/test_honest.py::TestKBCompletion.
     """
     MAX_LHS_LEN = 8
     rs = list(rules)
@@ -187,8 +198,9 @@ def knuth_bendix_complete(
 
     while steps < max_steps:
         pairs = _critical_pairs(rs)
-        if not pairs:
-            return rs, True  # All pairs resolved — completion successful
+        # all() on an empty list is True, so the no-overlaps case still passes.
+        if all(normalize(u, rs) == normalize(v, rs) for u, v in pairs):
+            return rs, True  # Locally confluent + terminating => complete
 
         resolved_any = False
         for (u, v) in pairs:
